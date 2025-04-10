@@ -21,7 +21,7 @@ You can run the web app in most modern browsers. Just save the index.html file a
 Once you've uploaded the ESP32 and Arduino code, open the web app and connect to the device. Then choose an action (write, read, or format). After that, just wait... and let the magic happen.
 
 
-You can adjust the delay for writing or reading data. For writing, I use 110 ms, and for reading, I use 50 ms.
+You can tweak the delay for writing or reading data. I usually go with 110 ms for writing and 50 ms for reading — works fine for me!
 
 
 # Limitations
