@@ -33,7 +33,10 @@ Once you've uploaded the ESP32 and Arduino code, open the web app and connect to
 # Connections
 
 ESP32 TX2 pin → Arduino RX0 pin
+
+
 ESP32 RX2 pin → Arduino TX0 pin
+
 
 To see how to connect the Arduino to the memory card, please refer to the memCARDuino repository.
 
