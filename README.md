@@ -68,9 +68,9 @@ P.S.: I honestly have no idea about PSXMemCard or PocketStation. I can be kinda 
 
 # TODO (maybe)
 
-Add a metadata interface (HEEEEEELLLLPPPPP!!!!)
+- Add a metadata interface (HEEEEEELLLLPPPPP!!!!)
 
-Design a 3D printed case—just for aesthetics (Oh come on, dude! Don’t dream too big!)
+- Design a 3D printed case—just for aesthetics (Oh come on, dude! Don’t dream too big!)
 
 # SPECIAL THANKS
 
