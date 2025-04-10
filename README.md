@@ -20,6 +20,10 @@ You can run the web app in most modern browsers. Just save the index.html file a
 
 Once you've uploaded the ESP32 and Arduino code, open the web app and connect to the device. Then choose an action (write, read, or format). After that, just wait... and let the magic happen.
 
+
+You can adjust the delay for writing or reading data. For writing, I use 110 ms, and for reading, I use 50 ms.
+
+
 # Limitations
 
 - You can only select a single .mcr or .bin file, with a maximum size of 128 KB.
@@ -29,6 +33,7 @@ Once you've uploaded the ESP32 and Arduino code, open the web app and connect to
 - You cannot edit save files directly.
 
 - PocketStation? Seriously? I can barely handle basic memory card operations. Forget it!
+- 
 
 # Connections
 
@@ -40,17 +45,22 @@ ESP32 RX2 pin → Arduino TX0 pin
 
 To see how to connect the Arduino to the memory card, please refer to the memCARDuino repository.
 
+
+
 # Write Function
 
 Simply select a .bin or .mcr save file and click the "Write Memory Card" button. Then wait for the process to finish.
+
 
 # Read Function
 
 Click the "Read Memory Card" button. That’s it—just wait, as with the writing process. Once the memory card backup image is saved, you can use any format converter to make the saves compatible with your emulator, for example.
 
+
 # Format Function
 
 Click the "Format Memory Card" button. Done. Irreversible operation!
+
 
 # Does it work with a PlayStation 2 Memory Card?
 
