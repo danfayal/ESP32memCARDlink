@@ -12,11 +12,11 @@ People might want to retrieve their old save files from original PlayStation mem
 
 To get started, you’ll need:
 
-An ESP32 board to create the BLE UART interface.
+- An ESP32 board to create the BLE UART interface.
 
-An Arduino board to upload the firmware from the memCARDuino project, developed by ShendoXT (check out Shendo’s repository—the links are below).
+- An Arduino board to upload the firmware from the memCARDuino project, developed by ShendoXT (check out Shendo’s repository—the links are below).
 
-You can run the web app in most modern browsers. Just save the index.html file to any directory on your Android device.
+You can run the web app in most modern browsers. Just save the index.html file anywhere on your Android device and open it in your favorite browser.
 
 Once you've uploaded the ESP32 and Arduino code, open the web app and connect to the device. Then choose an action (write, read, or format). After that, just wait... and let the magic happen.
 
