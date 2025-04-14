@@ -33,7 +33,7 @@ You can tweak the delay for writing or reading data. I usually go with 110 ms fo
 - You cannot edit save files directly.
 
 - PocketStation? Seriously? I can barely handle basic memory card operations. Forget it!
-- 
+
 
 # Connections
 
@@ -49,17 +49,21 @@ To see how to connect the Arduino to the memory card, please refer to the memCAR
 
 # Write Function
 
-Simply select a .bin or .mcr save file and click the "Write Memory Card" button. Then wait for the process to finish.
+Simply select a .bin or .mcr save file and click the 'Write Memory Card' button. Then wait for the process to finish.
 
 
 # Read Function
 
-Click the "Read Memory Card" button. That’s it—just wait, as with the writing process. Once the memory card backup image is saved, you can use any format converter to make the saves compatible with your emulator, for example.
+ATTENTION!!!!!
+
+Before proceeding, please be aware of an issue related to this process. If you wish to proceed, you must FIRST press the 'Reset button' on your ESP32 board. Despite trying various code methods, the cause of the buffer garbage remains unknown to me. This garbage disrupts the byte pattern, causing the saved file to be UNRECOGNIZABLE. Therefore, make sure to reset your ESP32 board before starting the process.
+
+Click the 'Read Memory Card' button. That’s it—just wait, as with the writing process. Once the memory card backup image is saved, you can use any format converter to make the saves compatible with your emulator, for example.
 
 
 # Format Function
 
-Click the "Format Memory Card" button. Done. Irreversible operation!
+Select the 'emptymemcard.bin' file and click the 'Write Memory Card' button. Done. Irreversible operation!
 
 
 # Does it work with a PlayStation 2 Memory Card?
@@ -78,13 +82,15 @@ P.S.: I honestly have no idea about PSXMemCard or PocketStation. I can be kinda 
 
 # TODO (maybe)
 
+- Fix the buffer garbage (what a pain in the @ss!)
+
 - Add a metadata interface (HEEEEEELLLLPPPPP!!!!)
 
 - Design a 3D printed case—just for aesthetics (Oh come on, dude! Don’t dream too big!)
 
 # SPECIAL THANKS
 
-To Shendo, a great developer.
+To Shendo.
 
 https://github.com/ShendoXT
 
