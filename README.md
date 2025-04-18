@@ -4,7 +4,7 @@ A wireless interface to access your classic PS1 memory card data, using the memC
 
 # Main Objective
 
-The goal of this project is to use the amazing memCARDuino by ShendoXT through a simple web application. It leverages the standard Web Bluetooth API and an ESP32 board acting as a BLE UART device, making it compatible with Android devices. It's an alternative to Python scripts and the incredible MemcardRex by Shendo.
+The goal of this project is to use the amazing MemCARDuino by ShendoXT through a simple web application. It leverages the standard Web Bluetooth API and an ESP32 board acting as a BLE UART device, making it compatible with Android devices. It's an alternative to Python scripts and the incredible MemcardRex by Shendo.
 
 # Purposes
 
@@ -14,25 +14,14 @@ To get started, you’ll need:
 
 - An ESP32 board to create the BLE UART interface.
 
-- An Arduino board to upload the firmware from the memCARDuino project, developed by ShendoXT (check out Shendo’s repository—the links are below).
+- An Arduino board to upload the firmware from the MemCARDuino project, developed by ShendoXT (check out Shendo’s repository—the links are below).
 
 You can run the web app in most modern browsers. Just save the index.html file anywhere on your Android device and open it in your favorite browser.
 
-Once you've uploaded the ESP32 and Arduino code, open the web app and connect to the device. Then choose an action (write, read, or format). After that, just wait... and let the magic happen.
+Once you've uploaded the ESP32 and the Arduino code, open the web app and connect to the device. Then choose an action (write, read, or format). After that, just wait... and let the magic happen.
 
 
-You can tweak the delay for writing or reading data. I usually go with 110 ms for writing and 50 ms for reading — works fine for me!
-
-
-# Limitations
-
-- You can only select a single .mcr or .bin file, with a maximum size of 128 KB.
-
-- Other common save formats are not supported.
-
-- You cannot edit save files directly.
-
-- PocketStation? Seriously? I can barely handle basic memory card operations. Forget it!
+You can tweak the delay for writing or reading data. I usually go with 162 ms for writing and reading — works fine for me!
 
 
 # Connections
@@ -79,6 +68,18 @@ YEEEEEEEEEEES!!!!!!!!!!!!!!!!!
 I DON'T KNOOOOOWWWWW!!!!!!!!
 
 P.S.: I honestly have no idea about PSXMemCard or PocketStation. I can be kinda lazy sometimes, you know? So if you decide to try it… well, do it at your own risk. I’m not responsible for any damage to your device (especially since those things are insanely expensive!).
+
+
+# Limitations
+
+- You can only select a single .mcr or .bin file, with a maximum size of 128 KB.
+
+- Other common save formats are not supported.
+
+- You cannot edit save files directly.
+
+- PocketStation? Seriously? I can barely handle basic memory card operations. Forget it!
+
 
 # TODO (maybe)
 
