@@ -1,6 +1,6 @@
 # ESP32memCARDlink
 
-A wireless interface to access your classic PS1 memory card data, using the memCARDuino project by ShendoXT.
+A wireless interface to access your classic PS1 memory card data, using the MemCARDuino project by ShendoXT.
 
 # Main Objective
 
