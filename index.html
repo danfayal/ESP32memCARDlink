@@ -1,0 +1,435 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PS1 Memory Card Reader/Writer (BLE-UART)</title>
+  <style>
+    body { font-family: sans-serif; background: #121212; color: #eee; padding: 1rem; margin: 0; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { color: #2196F3; text-align: center; margin-bottom: 1rem; }
+    .card { background: #1e1e1e; border-radius: 8px; margin-bottom: 1rem; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .card-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 0.8rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; }
+    .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.8rem; }
+    button { background: #2196F3; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+    button:hover { background: #1976D2; }
+    button:disabled { background: #555; cursor: not-allowed; }
+    .status-indicator { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.85rem; margin-left: 0.5rem; }
+    .status-connected { background: rgba(25,135,84,0.2); color: #28a745; }
+    .status-disconnected { background: rgba(220,53,69,0.2); color: #dc3545; }
+    input[type="range"], input[type="number"], select { background: #333; color: white; border: 1px solid #555; padding: 0.3rem; border-radius: 4px; }
+    .log { height: 200px; overflow-y: auto; font-family: monospace; background: #111; padding: 0.8rem; border-radius: 4px; font-size: 0.85rem; border: 1px solid #333; }
+    .log-entry { margin-bottom: 2px; white-space: pre-wrap; }
+    .success { color: #28a745; }
+    .warning { color: #ffc107; }
+    .error { color: #dc3545; }
+    .progress-bar-container { height: 10px; background: #333; border-radius: 5px; margin: 0.5rem 0; overflow: hidden; }
+    .progress-bar { height: 100%; background: #2196F3; width: 0%; transition: width 0.2s; }
+    .about { font-size: 0.8rem; color: #888; text-align: center; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PS1 Memory Card Reader/Writer (BLE-UART)</h1>
+    <div class="card">
+      <div class="card-title">Connection
+        <span id="connectionStatus" class="status-indicator status-disconnected">Disconnected</span>
+      </div>
+      <div class="controls">
+        <button id="connectBtn">Connect</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">File</div>
+      <div class="controls">
+        <button id="selectFileBtn">Select .mcr for write</button>
+        <span id="fileInfo">No file selected</span>
+      </div>
+      <div id="fileMetadata" class="metadata"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Settings</div>
+      <div class="controls">
+        <label>Start Frame: <input type="number" id="startFrame" min="0" max="1023" value="0" style="width:80px"></label>
+        <label>Delay (ms): <input type="range" id="frameDelay" min="5" max="200" value="162" style="width:120px"><span id="delayValue">162</span></label>
+        <label><input type="checkbox" id="formatFirstFrame" checked> Format Frame 0</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Operations</div>
+      <div class="controls">
+        <button id="readBtn" disabled>Read Memory Card</button>
+        <button id="writeBtn" disabled>Write to Memory Card</button>
+        <button id="testBtn">Test Connection</button>
+        <button id="cancelBtn" style="display:none; background:#dc3545;">Cancel</button>
+      </div>
+      <div id="progressContainer" style="display:none;">
+        <div class="progress-bar-container"><div id="progressBar" class="progress-bar"></div></div>
+        <div id="progressInfo">0/0 frames (0%)</div>
+      </div>
+      <button id="saveBtn" style="display:none;">Save .bin or .mcr file to Disk</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Log<button id="clearLogBtn" style="float:right; padding:0.2rem 0.5rem; font-size:0.8rem;">Clear</button></div>
+      <div id="logOutput" class="log"></div>
+    </div>
+
+    <div class="about">PS1 Memory Card Reader/Writer for ESP32 BLE-UART</div>
+  </div>
+
+  <script>
+  //basic setup variables (based on Shendo project)
+    const GETID = 0xA0;
+    const GETVER = 0xA1;
+    const MCREAD = 0xA2;
+    const MCWRITE = 0xA3;
+    const TEST = 0x54;
+
+    const RW_GOOD = 0x47;
+    const RW_BAD_CHECKSUM = 0x4E;
+    const RW_BAD_SECTOR = 0xFF;
+    const FRAME_SIZE=128, MAX_FRAMES=1024;
+    const SERVICE_UUID="6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_UUID_WRITE="6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_UUID_NOTIFY="6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+    const state={ device:null, writeChar:null, notifyChar:null, connected:false, isReading:false, isWriting:false, shouldCancel:false, fileData:null };
+    let rxBuffer=new Uint8Array(0);
+    let lastReadResult=null;
+
+    const el = {
+      connectBtn:document.getElementById("connectBtn"),
+      connectionStatus:document.getElementById("connectionStatus"),
+      selectFileBtn:document.getElementById("selectFileBtn"),
+      fileInfo:document.getElementById("fileInfo"),
+      fileMetadata:document.getElementById("fileMetadata"),
+      startFrame:document.getElementById("startFrame"),
+      frameDelay:document.getElementById("frameDelay"),
+      delayValue:document.getElementById("delayValue"),
+      formatFirstFrame:document.getElementById("formatFirstFrame"),
+      readBtn:document.getElementById("readBtn"),
+      writeBtn:document.getElementById("writeBtn"),
+      testBtn:document.getElementById("testBtn"),
+      cancelBtn:document.getElementById("cancelBtn"),
+      progressContainer:document.getElementById("progressContainer"),
+      progressBar:document.getElementById("progressBar"),
+      progressInfo:document.getElementById("progressInfo"),
+      saveBtn:document.getElementById("saveBtn"),
+      logOutput:document.getElementById("logOutput"),
+      clearLogBtn:document.getElementById("clearLogBtn")
+    };
+
+    function log(msg,type=""){ const ts=new Date().toLocaleTimeString(); const d=document.createElement("div"); d.className="log-entry "+type; d.textContent=`[${ts}] ${msg}`; el.logOutput.appendChild(d); el.logOutput.scrollTop=el.logOutput.scrollHeight; }
+    function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+    function updateProgress(cur,total){const p=Math.floor(cur/total*100); el.progressBar.style.width=`${p}%`; el.progressInfo.textContent=`${cur}/${total} frames (${p}%)`; }
+    function updateConnectionStatus(ok){ 
+      state.connected = ok; 
+      if (ok) { 
+        el.connectionStatus.textContent = "Connected"; 
+        el.connectionStatus.className = "status-indicator status-connected"; 
+        el.connectBtn.textContent = "Disconnect"; 
+        el.readBtn.disabled = false; 
+        if (state.fileData) el.writeBtn.disabled = false;
+      } else { 
+        el.connectionStatus.textContent = "Disconnected"; 
+        el.connectionStatus.className = "status-indicator status-disconnected"; 
+        el.connectBtn.textContent = "Connect"; 
+        el.readBtn.disabled = true; 
+        el.writeBtn.disabled = true;
+      } 
+    }
+
+    el.frameDelay.addEventListener("input",()=>{ el.delayValue.textContent=el.frameDelay.value; });
+// select the file to write data.
+
+    el.selectFileBtn.addEventListener("click",()=>{
+      const inp=document.createElement("input"); inp.type="file"; inp.accept=".mcr";
+      inp.onchange=e=>{
+        const f=e.target.files[0]; if(!f) return;
+        const r=new FileReader(); r.onload=()=>{
+          state.fileData=new Uint8Array(r.result);
+          el.fileInfo.textContent=f.name;
+          const frames=Math.floor(state.fileData.length/FRAME_SIZE);
+          el.fileMetadata.textContent=`File: ${f.name}, Size: ${f.size} bytes, Frames: ${frames}`;
+          log(`Loaded ${f.name}`,"success");
+          if(state.connected) el.writeBtn.disabled=false;
+        };
+        r.readAsArrayBuffer(f);
+      };
+      inp.click();
+    });
+
+
+// connection asynchronous function
+    async function connectToDevice(){
+      try{
+        log("Seaching the BLE device...");
+        const device=await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices:[SERVICE_UUID] });
+        state.device=device;
+        const server=await device.gatt.connect();
+        const svc=await server.getPrimaryService(SERVICE_UUID);
+        state.writeChar=await svc.getCharacteristic(CHAR_UUID_WRITE);
+        state.notifyChar=await svc.getCharacteristic(CHAR_UUID_NOTIFY);
+        await state.notifyChar.startNotifications();
+        state.notifyChar.addEventListener("characteristicvaluechanged", e => {
+          const chunk = new Uint8Array(
+            e.target.value.buffer, 
+            e.target.value.byteOffset, 
+            e.target.value.byteLength
+          );
+
+          const tmp = new Uint8Array(rxBuffer.length + chunk.length);
+          for (let i = 0; i < rxBuffer.length; i++) {
+            tmp[i] = rxBuffer[i];
+          }
+          for (let i = 0; i < chunk.length; i++) {
+            tmp[rxBuffer.length + i] = chunk[i];
+          }
+          rxBuffer = tmp;
+        });
+        log("Connected! all notifications started","success"); updateConnectionStatus(true);
+      }catch(err){ log(`Connection error: ${err.message}`,"error"); updateConnectionStatus(false); }
+    }
+    el.connectBtn.addEventListener("click",()=> state.connected?disconnectDevice():connectToDevice());
+    function disconnectDevice(){ if(state.device?.gatt.connected) state.device.gatt.disconnect(); log("Disconnected","warning"); updateConnectionStatus(false); }
+
+    async function testConnection(){ if(!state.connected){ log("Not connected","error"); return;} rxBuffer=new Uint8Array(0); try{ log("Testing..."); await state.writeChar.writeValue(new Uint8Array([TEST])); await sleep(100); if(rxBuffer.length) log("Test OK","success"); else log("No response","error"); }catch(err){ log(`Test error: ${err.message}`,"error"); }}
+    el.testBtn.addEventListener("click",testConnection);
+
+// checksum - verify bytes
+    function calculateChecksum(msb,lsb,data){ let cs=msb^lsb; cs^=data[0]; return cs; }
+
+
+// write asynchronous function
+
+    async function writeFrame(idx,frameData){ const delay=parseInt(el.frameDelay.value); const hex=idx.toString(16).padStart(4,"0"); const msb=parseInt(hex.slice(0,2),16), lsb=parseInt(hex.slice(2),16); const cs=calculateChecksum(msb,lsb,frameData); const buf=new Uint8Array(3+frameData.length+1); buf[0]=MCWRITE; buf[1]=msb; buf[2]=lsb; buf.set(frameData,3); buf[buf.length-1]=cs; await state.writeChar.writeValue(buf); await sleep(delay); }
+
+    async function writeMemoryCard(){ 
+      if(!state.connected || !state.fileData) return; 
+
+      const isEmptyCard = state.fileData[0] === 0x4D && state.fileData[1] === 0x43 && 
+                         state.fileData.slice(2, 128).every(byte => byte === 0);
+
+      if(isEmptyCard || (el.formatFirstFrame.checked && +el.startFrame.value === 0)) {
+        if(!confirm("WARNING: Write data will erase ALL current data on your memory card! This process is irreversible. Continue?")) {
+          log("Write operation cancelled by the user.", "warning");
+          return;
+        }
+        log("Writing memory card (or formatting)...", "warning");
+      }
+
+      state.isWriting = true;
+      el.progressContainer.style.display = "block";
+      el.cancelBtn.style.display = "inline-block";
+      el.connectBtn.disabled = el.testBtn.disabled = el.readBtn.disabled = el.selectFileBtn.disabled = true;
+
+      const start = +el.startFrame.value;
+      const fmt = el.formatFirstFrame.checked && start === 0;
+      const count = Math.min(Math.floor(state.fileData.length/FRAME_SIZE), MAX_FRAMES-start);
+
+      log(`Writing ${count} frames from ${start}...`);
+
+      if(fmt) { 
+        const hdr = new Uint8Array(FRAME_SIZE); 
+        hdr.fill(0); 
+        hdr[0] = 0x4D;
+        hdr[1] = 0x43;
+        hdr[127] = 0x0E;
+        await writeFrame(0, hdr);
+        log("Wrote format header (MC - 0x4D & 0x43)", "success");
+      }
+
+      for(let i = 0; i < count; i++) { 
+        if(state.shouldCancel) {
+          log("Write was cancelled.", "warning");
+          break;
+        }
+
+        const idx = start + i;
+        const frame = state.fileData.slice(i*FRAME_SIZE, (i+1)*FRAME_SIZE);
+        await writeFrame(idx, frame);
+
+        if(i % 16 === 0) {
+          log(`Wrote frame ${idx}`);
+        }
+        updateProgress(i+1, count);
+      }
+
+      log("Write operation complete.", "success");
+      state.isWriting = false;
+      el.progressContainer.style.display = "none";
+      el.cancelBtn.style.display = "none";
+      el.connectBtn.disabled = el.testBtn.disabled = el.readBtn.disabled = el.selectFileBtn.disabled = false;
+    }
+    el.writeBtn.addEventListener("click",writeMemoryCard);
+
+
+// read data asynchronous function
+    
+	async function readFrame(frameIndex) {
+  if (!state.connected || !state.writeChar) {
+    throw new Error('Not connected via BLE');
+  }
+
+  try {
+    const frameDelay = parseInt(el.frameDelay.value);
+
+    // index frame convertion to MSB/LSB
+    const addressBytes = frameIndex.toString(16).padStart(4, '0');
+    const addressMSB = parseInt(addressBytes.slice(0, 2), 16);
+    const addressLSB = parseInt(addressBytes.slice(2, 4), 16);
+
+    log(`Reading frame ${frameIndex} (MSB: ${addressMSB.toString(16).toUpperCase()}, LSB: ${addressLSB.toString(16).toUpperCase()})`);
+
+    // send MCREAD command via BLE
+	
+    const commandBuffer = new Uint8Array([MCREAD, addressMSB, addressLSB]);
+    await state.writeChar.writeValue(commandBuffer);
+
+    // await answer from ESP32
+    await sleep(frameDelay);
+
+    // start buffer to collect  128 bytes
+    const frameData = new Uint8Array(FRAME_SIZE);
+    let bytesRead = 0;
+
+    while (bytesRead < FRAME_SIZE) {
+      if (!rxBuffer || rxBuffer.length === 0) continue;
+
+      const bytesToCopy = Math.min(rxBuffer.length, FRAME_SIZE - bytesRead);
+      frameData.set(rxBuffer.slice(0, bytesToCopy), bytesRead);
+      bytesRead += bytesToCopy;
+
+      // clear the rxBuffer after consume
+      rxBuffer = new Uint8Array(0);
+    }
+
+    if (bytesRead < FRAME_SIZE) {
+      log(`Incomplete read for frame ${frameIndex}: got ${bytesRead} bytes`, 'error');
+      return { data: new Uint8Array(FRAME_SIZE), success: false };
+    }
+
+    return { data: frameData, success: true };
+
+  } catch (error) {
+    log(`Read frame error (${frameIndex}): ${error.message}`, 'error');
+    return { data: new Uint8Array(FRAME_SIZE), success: false };
+  }
+}
+
+	
+
+    async function readMemoryCard() { 
+      if (!state.connected || state.isReading || state.isWriting) return;
+
+      state.isReading = true;
+      state.shouldCancel = false;
+      el.progressContainer.style.display = "block";
+      el.cancelBtn.style.display = "inline-block";
+      el.connectBtn.disabled = el.testBtn.disabled = el.writeBtn.disabled = el.selectFileBtn.disabled = true;
+
+      const startTime = Date.now();
+      let lastProgressUpdate = Date.now();
+
+      try {
+        const totalFrames = MAX_FRAMES;
+        const result = new Uint8Array(FRAME_SIZE * totalFrames);
+        let successCount = 0;
+        let errorCount = 0;
+
+        log(`Starting memory card read (${totalFrames} frames)...`);
+
+        for (let i = 0; i < totalFrames; i++) {
+          if (state.shouldCancel) {
+            log('Read operation cancelled by user.', 'warning');
+            break;
+          }
+
+          const now = Date.now();
+          if (i % 10 === 0 ) {
+            log(`Reading frame ${i}/${totalFrames-1}...`);
+           // lastProgressUpdate = now;
+          }
+
+          updateProgress(i + 1, totalFrames);
+
+          const {data, success} = await readFrame(i);
+          result.set(data, i * FRAME_SIZE);
+
+          if (success) {
+            successCount++;
+          } else {
+            errorCount++;
+           /* if (errorCount > 20 && successCount === 0) {
+              log("Many read errors detected - check connection quality", "warning"); //debug
+            }*/
+          }
+
+          await sleep(0);
+        }
+
+        if (!state.shouldCancel && successCount > 0) {
+          lastReadResult = result;
+          el.saveBtn.style.display = "inline-block";
+          const timeElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          log(`Read complete: ${successCount} successful frames, ${errorCount} errors (${timeElapsed}s)`, 'success');
+        }
+      } catch (error) {
+        log(`Read operation failed: ${error.message}`, 'error');
+      } finally {
+        state.isReading = false;
+        el.progressContainer.style.display = "none";
+        el.cancelBtn.style.display = "none";
+        el.connectBtn.disabled = el.testBtn.disabled = el.writeBtn.disabled = el.selectFileBtn.disabled = false;
+      }
+    }
+	
+	// create the BLOB and save data
+	
+    el.readBtn.addEventListener("click",readMemoryCard);
+
+    el.saveBtn.addEventListener("click",async()=>{
+      if(!lastReadResult) return;
+
+      if(window.showSaveFilePicker) {
+        try{
+          const handle=await window.showSaveFilePicker({types:[{description:"PS1 Memory Card",accept:{"application/octet-stream":[".mcr"]}}]});
+          const writable=await handle.createWritable(); 
+          await writable.write(lastReadResult); 
+          await writable.close(); 
+          log("File saved successfully","success");
+        }catch(err){ log(`Save failed: ${err.message}`,"error"); }
+      } else {
+        const blob = new Blob([lastReadResult], {type: "application/octet-stream"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "memcard.mcr";
+        a.click();
+        URL.revokeObjectURL(url);
+        log("File saved.","success");
+      }
+    });
+
+    el.cancelBtn.addEventListener("click",()=>{state.shouldCancel=true;log("Cancelling...","warning");});
+    el.clearLogBtn.addEventListener("click",()=>{el.logOutput.innerHTML="";log("Log cleared");});
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if(!navigator.bluetooth) {
+        log("Web Bluetooth API isn't supported in your browser","error");
+        el.connectBtn.disabled = true;
+        el.connectBtn.textContent = "Bluetooth Not Supported";
+        el.testBtn.disabled = true;
+      } else {
+        log("MemCARDuino BLE Management System initialized");
+        log("Connect to your ESP32-MemCARDuino device to begin");
+      }
+    });
+  </script>
+</body>
+</html>
