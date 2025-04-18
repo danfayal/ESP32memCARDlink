@@ -43,7 +43,7 @@ ESP32 TX2 pin → Arduino RX0 pin
 ESP32 RX2 pin → Arduino TX0 pin
 
 
-To see how to connect the Arduino to the memory card, please refer to the memCARDuino repository.
+To see how to connect the Arduino board to the memory card, please refer to the memCARDuino repository.
 
 
 
@@ -56,7 +56,7 @@ Simply select a .bin or .mcr save file and click the 'Write Memory Card' button.
 
 ATTENTION!!!!!
 
-Before proceeding, please be aware of an issue related to this process. If you wish to proceed, you must FIRST press the 'Reset button' on your ESP32 board. Despite trying various code methods, the cause of the buffer garbage remains unknown to me. This garbage disrupts the byte pattern, causing the saved file to be UNRECOGNIZABLE. Therefore, make sure to reset your ESP32 board before starting the process.
+Before proceeding, please be aware of an possible issue related to this process. Try to  press the 'Reset button' on your ESP32 board, to clear an possible buffer garbage. Buffer garbage can disrupts the byte pattern, causing the saved file to be UNRECOGNIZABLE. 
 
 Click the 'Read Memory Card' button. That’s it—just wait, as with the writing process. Once the memory card backup image is saved, you can use any format converter to make the saves compatible with your emulator, for example.
 
@@ -81,8 +81,6 @@ I DON'T KNOOOOOWWWWW!!!!!!!!
 P.S.: I honestly have no idea about PSXMemCard or PocketStation. I can be kinda lazy sometimes, you know? So if you decide to try it… well, do it at your own risk. I’m not responsible for any damage to your device (especially since those things are insanely expensive!).
 
 # TODO (maybe)
-
-- Fix the buffer garbage (what a pain in the @ss!)
 
 - Add a metadata interface (HEEEEEELLLLPPPPP!!!!)
 
