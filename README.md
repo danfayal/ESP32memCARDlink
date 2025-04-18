@@ -32,7 +32,7 @@ ESP32 TX2 pin → Arduino RX0 pin
 ESP32 RX2 pin → Arduino TX0 pin
 
 
-To see how to connect the Arduino board to the memory card, please refer to the memCARDuino repository.
+To see how to connect the Arduino board to the memory card, please refer to the MemCARDuino repository.
 
 
 
@@ -72,13 +72,9 @@ P.S.: I honestly have no idea about PSXMemCard or PocketStation. I can be kinda 
 
 # Limitations
 
-- You can only select a single .mcr or .bin file, with a maximum size of 128 KB.
-
-- Other common save formats are not supported.
-
 - You cannot edit save files directly.
 
-- PocketStation? Seriously? I can barely handle basic memory card operations. Forget it!
+- PocketStation? Seriously? I can barely handle basic memory card operations. Forget it! ( but you can give a try, changing the HTML code for this :)  )
 
 
 # TODO (maybe)
